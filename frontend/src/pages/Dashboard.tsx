@@ -10,8 +10,8 @@ import {
 } from 'lucide-react'
 
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -20,7 +20,11 @@ import {
 } from 'recharts'
 
 import StatCard from '../components/StatCard'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
+import {
+  calculateHeatLoss,
+  type HeatLossResponse,
+} from '../api/thermoshelter'
 
 const ShelterViewer = lazy(
   () => import('../components/ShelterViewer')
@@ -28,20 +32,38 @@ const ShelterViewer = lazy(
 import type { ShelterConfig } from '../types/shelter'
 import type { Dispatch, SetStateAction } from 'react'
 
-const temperatureData = [
-  { time: '00:00', indoor: -8, outdoor: -18 },
-  { time: '04:00', indoor: -6, outdoor: -20 },
-  { time: '08:00', indoor: -2, outdoor: -14 },
-  { time: '12:00', indoor: 5, outdoor: -5 },
-  { time: '16:00', indoor: 8, outdoor: -3 },
-  { time: '20:00', indoor: 2, outdoor: -10 },
-  { time: '24:00', indoor: -3, outdoor: -16 },
-]
+
 interface DashboardProps {
   shelter: ShelterConfig
   setShelter: Dispatch<SetStateAction<ShelterConfig>>
 }
 export default function Dashboard({shelter, setShelter}: DashboardProps) {
+    const [simulation, setSimulation] = useState<HeatLossResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const runSimulation = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const result = await calculateHeatLoss(shelter, {
+        location: 'Ladakh',
+        outdoor_temperature_c: -10,
+        wind_speed_m_s: 5,
+        solar_radiation_w_m2: 300,
+        humidity_percent: 40,
+      })
+
+      setSimulation(result)
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Simulation failed'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
   return (
     <div className="dashboard-content">
       <div className="page-heading">
@@ -56,124 +78,175 @@ export default function Dashboard({shelter, setShelter}: DashboardProps) {
           DEMO DATA
         </div>
       </div>
+      <section className="panel" style={{ marginBottom: '24px', padding: '20px' }}>
+  <div className="panel-heading">
+    <div>
+      <h3>Thermal Simulation</h3>
+      <p>Calculate heat loss using your current shelter configuration.</p>
+    </div>
+
+
+<button
+  onClick={runSimulation}
+  disabled={loading}
+  className="period-button"
+>
+  {loading ? 'Calculating...' : 'Run Simulation'}
+</button>
+
+
+  </div>
+
+{error && (
+<p style={{ color: '#ef4444', marginTop: '12px' }}>
+{error} </p>
+)}
+
+{simulation && (
+<div style={{ marginTop: '16px' }}> <h3>Simulation completed — {simulation.location}</h3> <p>
+Total Heat Loss:{' '} <strong>
+{(simulation.thermal_analysis.total_heat_loss_w / 1000).toFixed(3)} kW </strong> </p> <p>
+Walls: {simulation.thermal_analysis.wall_heat_loss_w} W
+{' | '}
+Roof: {simulation.thermal_analysis.roof_heat_loss_w} W
+{' | '}
+Floor: {simulation.thermal_analysis.floor_heat_loss_w} W </p> </div>
+)}
+
+</section>
+
 
       <section className="stats-grid">
         <StatCard
           title="Indoor Temperature"
-          value="8.4"
+          value={simulation ? simulation.indoor_temperature_c.toFixed(1) : '--'}
           unit="°C"
-          description="Illustrative predicted temperature"
+          description="Fixed simulation assumption, not a prediction"
           icon={Thermometer}
           color="blue"
         />
 
         <StatCard
           title="Heat Loss"
-          value="2.8"
+          value={
+            simulation
+              ? (simulation.thermal_analysis.total_heat_loss_w / 1000).toFixed(3)
+              : '--'
+          }
           unit="kW"
-          description="Illustrative thermal load"
+          description="Calculated transmission heat loss"
           icon={TrendingDown}
           color="orange"
         />
 
         <StatCard
-          title="Estimated Cost"
-          value="₹1.85"
-          unit="L"
-          description="Illustrative construction estimate"
-          icon={Wallet}
-          color="green"
-        />
+  title="Estimated Cost"
+  value="--"
+  unit=""
+  description="Not yet calculated"
+  icon={Wallet}
+  color="green"
+/>
 
-        <StatCard
-          title="Thermal Efficiency"
-          value="76"
-          unit="%"
-          description="Illustrative performance indicator"
-          icon={Activity}
-          color="purple"
-        />
+<StatCard
+  title="Thermal Efficiency"
+  value="--"
+  unit=""
+  description="Not yet calculated"
+  icon={Activity}
+  color="purple"
+/>
       </section>
 
       <section className="main-grid">
         <div className="panel temperature-panel">
-          <div className="panel-heading">
-            <div>
-              <h3>Temperature Analysis</h3>
-              <p>Illustrative indoor vs outdoor temperature</p>
-            </div>
+  <div className="panel-heading">
+    <div>
+      <h3>Heat Loss Breakdown</h3>
+      <p>
+        {simulation
+          ? 'Calculated heat loss by shelter component'
+          : 'Run a simulation to view heat loss'}
+      </p>
+    </div>
+  </div>
 
-            <button className="period-button">
-              24 Hours <ArrowUpRight size={14} />
-            </button>
-          </div>
+  {simulation ? (
+    <>
+      <div className="chart-legend">
+        <span>
+          <i className="legend-indoor" />
+          Heat Loss (Watts)
+        </span>
+      </div>
 
-          <div className="chart-legend">
-            <span><i className="legend-indoor" /> Indoor</span>
-            <span><i className="legend-outdoor" /> Outdoor</span>
-          </div>
+      <div className="temperature-chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={[
+              {
+                component: 'Walls',
+                heatLoss: simulation.thermal_analysis.wall_heat_loss_w,
+              },
+              {
+                component: 'Roof',
+                heatLoss: simulation.thermal_analysis.roof_heat_loss_w,
+              },
+              {
+                component: 'Floor',
+                heatLoss: simulation.thermal_analysis.floor_heat_loss_w,
+              },
+            ]}
+          >
+            <CartesianGrid
+              stroke="#263448"
+              strokeDasharray="4 4"
+            />
 
-          <div className="temperature-chart">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={temperatureData}>
-                <defs>
-                  <linearGradient id="indoorGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#35b7e8" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#35b7e8" stopOpacity={0} />
-                  </linearGradient>
+            <XAxis
+              dataKey="component"
+              stroke="#8291a7"
+              tick={{ fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
 
-                  <linearGradient id="outdoorGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+            <YAxis
+              stroke="#8291a7"
+              tick={{ fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              unit=" W"
+            />
 
-                <CartesianGrid stroke="#263448" strokeDasharray="4 4" />
+            <Tooltip
+              contentStyle={{
+                background: '#111d2e',
+                border: '1px solid #293b51',
+                borderRadius: '10px',
+                color: '#fff',
+              }}
+              formatter={(value) => [`${value} W`, 'Heat Loss']}
+            />
 
-                <XAxis
-                  dataKey="time"
-                  stroke="#8291a7"
-                  tick={{ fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-
-                <YAxis
-                  stroke="#8291a7"
-                  tick={{ fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  unit="°"
-                />
-
-                <Tooltip
-                  contentStyle={{
-                    background: '#111d2e',
-                    border: '1px solid #293b51',
-                    borderRadius: '10px',
-                    color: '#fff',
-                  }}
-                />
-
-                <Area
-                  type="monotone"
-                  dataKey="indoor"
-                  stroke="#35b7e8"
-                  fill="url(#indoorGradient)"
-                  strokeWidth={2.5}
-                />
-
-                <Area
-                  type="monotone"
-                  dataKey="outdoor"
-                  stroke="#f59e0b"
-                  fill="url(#outdoorGradient)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+            <Bar
+              dataKey="heatLoss"
+              fill="#35b7e8"
+              radius={[5, 5, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </>
+  ) : (
+    <div style={{ padding: '40px 10px', textAlign: 'center' }}>
+      <p>Simulation results will appear here.</p>
+      <p style={{ color: '#8291a7', fontSize: '13px' }}>
+        Configure your shelter and click Run Simulation.
+      </p>
+    </div>
+  )}
+</div>
 
         <div className="panel environment-panel">
           <div className="panel-heading">
@@ -190,7 +263,7 @@ export default function Dashboard({shelter, setShelter}: DashboardProps) {
             </div>
             <div>
               <span>Outdoor Temperature</span>
-              <strong>-18°C</strong>
+              <strong>{simulation ? `${simulation.outdoor_temperature_c}°C` : '--'}</strong>
             </div>
             <ArrowDownRight className="orange-text" size={18} />
           </div>
@@ -201,7 +274,12 @@ export default function Dashboard({shelter, setShelter}: DashboardProps) {
             </div>
             <div>
               <span>Wind Speed</span>
-              <strong>12 km/h</strong>
+              <strong>
+                {
+                simulation
+                ? `${(simulation.wind_speed_m_s * 3.6).toFixed(1)} km/h`
+                : '--'}
+              </strong>
             </div>
             <ArrowUpRight className="muted-icon" size={18} />
           </div>
@@ -212,14 +290,31 @@ export default function Dashboard({shelter, setShelter}: DashboardProps) {
             </div>
             <div>
               <span>Solar Radiation</span>
-              <strong>420 W/m²</strong>
+              <strong>
+                {simulation
+                ? `${simulation.solar_radiation_w_m2} W/m²`
+                : '--'}
+              </strong>
             </div>
             <ArrowUpRight className="muted-icon" size={18} />
           </div>
+          <div className="environment-item">
+  <div className="environment-icon blue">
+    <Activity size={19} />
+  </div>
+  <div>
+    <span>Humidity</span>
+    <strong>
+      {simulation ? `${simulation.humidity_percent}%` : '--'}
+    </strong>
+  </div>
+</div>
 
           <div className="environment-note">
             <span className="note-dot" />
-            Illustrative climate inputs — not live weather data.
+            {simulation
+            ? `Climate inputs used for ${simulation.location} simulation.`
+            : 'Run a simulation to view climate inputs.'}
           </div>
         </div>
       </section>
@@ -277,17 +372,40 @@ export default function Dashboard({shelter, setShelter}: DashboardProps) {
           </div>
 
           <div className="activity-content">
-            <div className="activity-indicator" />
-            <div>
-              <strong>Awaiting simulation</strong>
-              <p>Configure your shelter to begin thermal analysis.</p>
-            </div>
-          </div>
+  <div className="activity-indicator" />
+  <div>
+    <strong>
+      {loading
+        ? 'Simulation in progress'
+        : error
+          ? 'Simulation failed'
+          : simulation
+            ? 'Simulation completed'
+            : 'Awaiting simulation'}
+    </strong>
+
+    <p>
+      {loading
+        ? 'Calculating heat loss for the current shelter configuration...'
+        : error
+          ? error
+          : simulation
+            ? `Thermal analysis completed for ${simulation.location}.`
+            : 'Configure your shelter and click Run Simulation to begin.'}
+    </p>
+  </div>
+</div>
 
           <div className="activity-footer">
             <span>Simulation engine</span>
             <span className="pending-label">Not connected</span>
           </div>
+          <div className="activity-footer">
+  <span>Simulation engine</span>
+  <span className="pending-label">
+    {loading ? 'Processing' : simulation ? 'Connected' : error ? 'Error' : 'Ready'}
+  </span>
+</div>
         </div>
       </section>
     </div>

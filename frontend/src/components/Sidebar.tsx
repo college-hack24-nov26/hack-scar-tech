@@ -9,15 +9,30 @@ import {
   ChevronLeft,
 } from 'lucide-react'
 
+export type PageId =
+  | 'Dashboard'
+  | 'Shelter Designer'
+  | 'Thermal Simulation'
+  | 'Optimization'
+  | 'Reports'
+
+interface SidebarProps {
+  activePage: PageId
+  onNavigate: (page: PageId) => void
+}
+
 const navigation = [
-  { label: 'Dashboard', icon: LayoutDashboard },
-  { label: 'Shelter Designer', icon: House },
-  { label: 'Thermal Simulation', icon: Thermometer },
-  { label: 'Optimization', icon: SlidersHorizontal },
-  { label: 'Reports', icon: FileText },
+  { label: 'Dashboard' as PageId, icon: LayoutDashboard },
+  { label: 'Shelter Designer' as PageId, icon: House },
+  { label: 'Thermal Simulation' as PageId, icon: Thermometer },
+  { label: 'Optimization' as PageId, icon: SlidersHorizontal },
+  { label: 'Reports' as PageId, icon: FileText },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({
+  activePage,
+  onNavigate,
+}: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -34,13 +49,16 @@ export default function Sidebar() {
       <div className="workspace-label">WORKSPACE</div>
 
       <nav className="sidebar-nav">
-        {navigation.map((item, index) => {
+        {navigation.map((item) => {
           const Icon = item.icon
 
           return (
             <button
               key={item.label}
-              className={`nav-item ${index === 0 ? 'active' : ''}`}
+              onClick={() => onNavigate(item.label)}
+              className={`nav-item ${
+                activePage === item.label ? 'active' : ''
+              }`}
             >
               <Icon size={19} />
               <span>{item.label}</span>
@@ -50,7 +68,12 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-bottom">
-        <button className="nav-item">
+        <button
+          className={`nav-item ${
+            activePage === 'Reports' ? '' : ''
+          }`}
+          onClick={() => onNavigate('Dashboard')}
+        >
           <Settings size={19} />
           <span>Settings</span>
         </button>
