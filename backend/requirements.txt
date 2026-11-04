@@ -3,3 +3,6 @@ uvicorn
 sqlalchemy
 numpy
 pydantic
+scikit-learn
+pandas
+joblib

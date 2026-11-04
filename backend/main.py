@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routes.materials import router as materials_router
 from routes.simulation import router as simulation_router
+from routes.ml_prediction import router as ml_router
 
 app = FastAPI(
 title="ThermoShelter AI",
@@ -23,7 +24,7 @@ allow_headers=["*"],
 
 app.include_router(materials_router)
 app.include_router(simulation_router)
-
+app.include_router(ml_router)
 @app.get("/")
 def home():
     return {"message": "Welcome to ThermoShelter AI"}

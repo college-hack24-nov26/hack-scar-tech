@@ -130,57 +130,380 @@ function ShelterModel({
 }: ShelterModelProps) {
   const wall = 0.15
   const roofThickness = 0.18
-  
+
+  const doorWidth = 0.95
+  const doorHeight = Math.min(2.1, height * 0.8)
+
+  const windowWidth = 1.1
+  const windowHeight = 1.0
+  const windowSill = 1.0
+
+  const frontZ = width / 2
+  const sideX = -length / 2
+
+  // Keep openings within the shelter dimensions.
+  const safeDoorWidth = Math.min(doorWidth, length * 0.3)
+  const safeWindowWidth = Math.min(windowWidth, length * 0.25)
+  const safeSideWindowWidth = Math.min(windowWidth, width * 0.25)
+
+  const doorLeft = -safeDoorWidth / 2
+  const doorRight = safeDoorWidth / 2
+
+  const frontWindowCenter = length * 0.27
+  const frontWindowLeft = frontWindowCenter - safeWindowWidth / 2
+  const frontWindowRight = frontWindowCenter + safeWindowWidth / 2
+
+  const windowBottom = Math.min(windowSill, height * 0.35)
+  const windowTop = Math.min(
+    windowBottom + windowHeight,
+    height - 0.25
+  )
+
+  const windowActualHeight = windowTop - windowBottom
+
+  const WallSegment = ({
+    position,
+    size,
+  }: {
+    position: [number, number, number]
+    size: [number, number, number]
+  }) => (
+    <mesh position={position} castShadow receiveShadow>
+      <boxGeometry args={size} />
+      <meshStandardMaterial color="#38bdf8" roughness={0.7} />
+    </mesh>
+  )
+
   return (
     <group>
       {/* Floor */}
-      <mesh position={[0, wall / 2, 0]} receiveShadow>
+      <mesh position={[0, -wall / 2, 0]} receiveShadow castShadow>
         <boxGeometry args={[length, wall, width]} />
         <meshStandardMaterial color="#64748b" roughness={0.8} />
       </mesh>
 
       {/* Back wall */}
-      <mesh position={[0, height / 2, -width / 2]}>
-        <boxGeometry args={[length, height, wall]} />
-        <meshStandardMaterial color="#38bdf8" roughness={0.7} />
-      </mesh>
+      <WallSegment
+        position={[0, height / 2, -width / 2]}
+        size={[length, height, wall]}
+      />
 
-      {/* Left wall */}
-      <mesh position={[-length / 2, height / 2, 0]}>
-        <boxGeometry args={[wall, height, width]} />
-        <meshStandardMaterial color="#0e7490" roughness={0.7} />
-      </mesh>
-
-      {/* Right wall */}
-      <mesh position={[length / 2, height / 2, 0]}>
-        <boxGeometry args={[wall, height, width]} />
-        <meshStandardMaterial color="#0e7490" roughness={0.7} />
-      </mesh>
-
-      {/* Front wall - hidden in cutaway mode */}
+      {/* Front wall: left of entrance */}
       {!cutaway && (
-        <mesh position={[0, height / 2, width / 2]}>
-          <boxGeometry args={[length, height, wall]} />
-          <meshStandardMaterial color="#38bdf8" roughness={0.7} />
-        </mesh>
+        <>
+      <WallSegment
+        position={[
+          (-length / 2 + doorLeft) / 2,
+          height / 2,
+          frontZ,
+        ]}
+        size={[
+          length / 2 + doorLeft,
+          height,
+          wall,
+        ]}
+      />
+
+      {/* Front wall: between entrance and window */}
+      <WallSegment
+        position={[
+          (doorRight + frontWindowLeft) / 2,
+          height / 2,
+          frontZ,
+        ]}
+        size={[
+          frontWindowLeft - doorRight,
+          height,
+          wall,
+        ]}
+      />
+
+      {/* Front wall: right of window */}
+      <WallSegment
+        position={[
+          (frontWindowRight + length / 2) / 2,
+          height / 2,
+          frontZ,
+        ]}
+        size={[
+          length / 2 - frontWindowRight,
+          height,
+          wall,
+        ]}
+      />
+
+      {/* Front wall: above entrance */}
+      <WallSegment
+        position={[
+          0,
+          (doorHeight + height) / 2,
+          frontZ,
+        ]}
+        size={[
+          safeDoorWidth,
+          height - doorHeight,
+          wall,
+        ]}
+      />
+
+      {/* Front wall: below window */}
+      <WallSegment
+        position={[
+          frontWindowCenter,
+          windowBottom / 2,
+          frontZ,
+        ]}
+        size={[
+          safeWindowWidth,
+          windowBottom,
+          wall,
+        ]}
+      />
+
+      {/* Front wall: above window */}
+      <WallSegment
+        position={[
+          frontWindowCenter,
+          (windowTop + height) / 2,
+          frontZ,
+        ]}
+        size={[
+          safeWindowWidth,
+          height - windowTop,
+          wall,
+        ]}
+      />
+
+      {/* Front window glass */}
+      <mesh
+        position={[
+          frontWindowCenter,
+          windowBottom + windowActualHeight / 2,
+          frontZ,
+        ]}
+      >
+        <boxGeometry args={[safeWindowWidth, windowActualHeight, 0.04]} />
+        <meshPhysicalMaterial
+          color="#7dd3fc"
+          transparent
+          opacity={0.35}
+          roughness={0.1}
+          metalness={0.1}
+        />
+      </mesh>
+      {/* Front window frame */}
+<group position={[frontWindowCenter, windowBottom + windowActualHeight / 2, frontZ + 0.04]}>
+  {/* Top */}
+  <mesh position={[0, windowActualHeight / 2, 0]}>
+    <boxGeometry args={[safeWindowWidth + 0.08, 0.06, 0.08]} />
+    <meshStandardMaterial color="#334155" />
+  </mesh>
+
+  {/* Bottom */}
+  <mesh position={[0, -windowActualHeight / 2, 0]}>
+    <boxGeometry args={[safeWindowWidth + 0.08, 0.06, 0.08]} />
+    <meshStandardMaterial color="#334155" />
+  </mesh>
+
+  {/* Left */}
+  <mesh position={[-safeWindowWidth / 2, 0, 0]}>
+    <boxGeometry args={[0.06, windowActualHeight, 0.08]} />
+    <meshStandardMaterial color="#334155" />
+  </mesh>
+
+  {/* Right */}
+  <mesh position={[safeWindowWidth / 2, 0, 0]}>
+    <boxGeometry args={[0.06, windowActualHeight, 0.08]} />
+    <meshStandardMaterial color="#334155" />
+  </mesh>
+</group>
+
+      {/* Entrance door */}
+      <mesh
+        position={[0, doorHeight / 2, frontZ]}
+        castShadow
+      >
+        <boxGeometry args={[safeDoorWidth * 0.94, doorHeight * 0.98, 0.06]} />
+        <meshStandardMaterial color="#92400e" roughness={0.7} />
+      </mesh>
+
+      {/* Door handle */}
+      <mesh position={[safeDoorWidth * 0.32, doorHeight * 0.48, frontZ + 0.06]}>
+        <sphereGeometry args={[0.045, 12, 12]} />
+        <meshStandardMaterial color="#fbbf24" metalness={0.7} />
+      </mesh>
+      {/* Door frame */}
+<group position={[0, doorHeight / 2, frontZ + 0.1]}>
+  {/* Left frame */}
+  <mesh position={[-safeDoorWidth / 2 - 0.04, 0, 0]}>
+    <boxGeometry args={[0.08, doorHeight, 0.08]} />
+    <meshStandardMaterial color="#475569" />
+  </mesh>
+
+  {/* Right frame */}
+  <mesh position={[safeDoorWidth / 2 + 0.04, 0, 0]}>
+    <boxGeometry args={[0.08, doorHeight, 0.08]} />
+    <meshStandardMaterial color="#475569" />
+  </mesh>
+
+  {/* Top frame */}
+  <mesh position={[0, doorHeight / 2, 0]}>
+    <boxGeometry args={[safeDoorWidth + 0.16, 0.08, 0.08]} />
+    <meshStandardMaterial color="#475569" />
+  </mesh>
+</group>
+</>
       )}
 
-      {/* Roof */}
-      <mesh position={[0, height + roofThickness / 2, 0]}>
-        <boxGeometry args={[length + 0.3, roofThickness, width + 0.3]} />
+      {/* Left side wall with window opening */}
+      <WallSegment
+        position={[sideX, height / 2, (-width / 2 + (-safeSideWindowWidth / 2)) / 2]}
+        size={[wall, height, width / 2 - safeSideWindowWidth / 2]}
+      />
+
+      <WallSegment
+        position={[sideX, height / 2, (safeSideWindowWidth / 2 + width / 2) / 2]}
+        size={[wall, height, width / 2 - safeSideWindowWidth / 2]}
+      />
+
+      <WallSegment
+        position={[sideX, windowBottom / 2, 0]}
+        size={[wall, windowBottom, safeSideWindowWidth]}
+      />
+
+      <WallSegment
+        position={[sideX, (windowTop + height) / 2, 0]}
+        size={[wall, height - windowTop, safeSideWindowWidth]}
+      />
+
+      {/* Side window glass */}
+      <mesh position={[sideX, windowBottom + windowActualHeight / 2, 0]}>
+        <boxGeometry args={[0.04, windowActualHeight, safeSideWindowWidth]} />
+        <meshPhysicalMaterial
+          color="#7dd3fc"
+          transparent
+          opacity={0.35}
+          roughness={0.1}
+        />
+      </mesh>
+      {/* Side window frame */}
+<group position={[sideX - 0.04, windowBottom + windowActualHeight / 2, 0]}>
+  {/* Top */}
+  <mesh position={[0, windowActualHeight / 2, 0]}>
+    <boxGeometry args={[0.08, 0.06, safeSideWindowWidth + 0.08]} />
+    <meshStandardMaterial color="#334155" />
+  </mesh>
+
+  {/* Bottom */}
+  <mesh position={[0, -windowActualHeight / 2, 0]}>
+    <boxGeometry args={[0.08, 0.06, safeSideWindowWidth + 0.08]} />
+    <meshStandardMaterial color="#334155" />
+  </mesh>
+
+  {/* Left */}
+  <mesh position={[0, 0, -safeSideWindowWidth / 2]}>
+    <boxGeometry args={[0.08, windowActualHeight, 0.06]} />
+    <meshStandardMaterial color="#334155" />
+  </mesh>
+
+  {/* Right */}
+  <mesh position={[0, 0, safeSideWindowWidth / 2]}>
+    <boxGeometry args={[0.08, windowActualHeight, 0.06]} />
+    <meshStandardMaterial color="#334155" />
+  </mesh>
+</group>
+
+      {/* Layered right wall */}
+
+
+{/* Right wall construction assembly */}
+
+{!cutaway ? (
+  /* Complete exterior cladding */
+  <mesh
+    position={[length / 2 + 0.065, height / 2, 0]}
+    castShadow
+    receiveShadow
+  >
+    <boxGeometry args={[0.02, height, width]} />
+    <meshStandardMaterial color="#64748b" roughness={0.8} />
+  </mesh>
+) : (
+  <>
+    {/* Outer cladding with central inspection opening */}
+    {[-1, 1].map((side) => (
+      <mesh
+        key={`outer-${side}`}
+        position={[
+          length / 2 + 0.065,
+          height / 2,
+          side * width * 0.32,
+        ]}
+      >
+        <boxGeometry args={[0.02, height, width * 0.36]} />
+        <meshStandardMaterial color="#64748b" roughness={0.8} />
+      </mesh>
+    ))}
+
+    {/* Insulation core */}
+    <mesh
+      position={[length / 2 + 0.025, height / 2, 0]}
+      castShadow
+    >
+      <boxGeometry args={[0.07, height, width * 0.28]} />
+      <meshStandardMaterial color="#f59e0b" roughness={0.9} />
+    </mesh>
+
+    {/* Inner lining */}
+    <mesh
+      position={[length / 2 - 0.035, height / 2, 0]}
+      castShadow
+    >
+      <boxGeometry args={[0.03, height, width]} />
+      <meshStandardMaterial color="#e2e8f0" roughness={0.8} />
+    </mesh>
+
+    {/* Inspection-section boundary markers */}
+    {[-1, 1].map((side) => (
+      <mesh
+        key={`edge-${side}`}
+        position={[
+          length / 2 + 0.08,
+          height / 2,
+          side * width * 0.14,
+        ]}
+      >
+        <boxGeometry args={[0.015, height, 0.025]} />
+        <meshStandardMaterial color="#b45309" />
+      </mesh>
+    ))}
+  </>
+)}
+      
+
+      {/* Slightly sloped roof */}
+      <mesh
+        position={[0, height + roofThickness / 2, 0]}
+        rotation={[0, 0, -0.025]}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={[length + 0.4, roofThickness, width + 0.4]} />
         <meshStandardMaterial color="#334155" roughness={0.7} />
       </mesh>
-      <HeatFlow
-        length={length}
-        width={width}
-        height={height}
-      />
 
       {/* Interior partition */}
       <mesh position={[0, height / 2, 0]}>
         <boxGeometry args={[0.08, Math.min(1.6, height), width * 0.65]} />
         <meshStandardMaterial color="#f59e0b" />
       </mesh>
+
+      {/* Heat flow */}
+      <HeatFlow
+        length={length}
+        width={width}
+        height={height}
+      />
     </group>
   )
 }
