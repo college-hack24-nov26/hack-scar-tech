@@ -103,7 +103,7 @@ export default function Dashboard({shelter, setShelter}: DashboardProps) {
 )}
 
 {simulation && (
-<div style={{ marginTop: '16px' }}> <h3>Simulation completed — {simulation.location}</h3> <p>
+<div style={{ marginTop: '16px' }}> <h3>Simulation Completed</h3> <p>
 Total Heat Loss:{' '} <strong>
 {(simulation.thermal_analysis.total_heat_loss_w / 1000).toFixed(3)} kW </strong> </p> <p>
 Walls: {simulation.thermal_analysis.wall_heat_loss_w} W
@@ -313,8 +313,8 @@ Floor: {simulation.thermal_analysis.floor_heat_loss_w} W </p> </div>
           <div className="environment-note">
             <span className="note-dot" />
             {simulation
-            ? `Climate inputs used for ${simulation.location} simulation.`
-            : 'Run a simulation to view climate inputs.'}
+  ? 'Climate inputs used for thermal simulation.'
+  : 'Run a simulation to view climate inputs.'}
           </div>
         </div>
       </section>
@@ -347,10 +347,7 @@ Floor: {simulation.thermal_analysis.floor_heat_loss_w} W </p> </div>
               <span>Project Name</span>
               <strong>Himalayan Eco Shelter</strong>
             </div>
-            <div>
-              <span>Location</span>
-              <strong>Ladakh, India</strong>
-            </div>
+           
             <div>
               <span>Dimensions</span>
               <strong>{shelter.length_m}m × {shelter.width_m}m × {shelter.height_m}m</strong>
@@ -390,16 +387,16 @@ Floor: {simulation.thermal_analysis.floor_heat_loss_w} W </p> </div>
         : error
           ? error
           : simulation
-            ? `Thermal analysis completed for ${simulation.location}.`
+            ? `Thermal analysis completed successfully.`
             : 'Configure your shelter and click Run Simulation to begin.'}
     </p>
   </div>
 </div>
 
-          <div className="activity-footer">
-            <span>Simulation engine</span>
-            <span className="pending-label">Not connected</span>
-          </div>
+          
+            
+            
+          
           <div className="activity-footer">
   <span>Simulation engine</span>
   <span className="pending-label">
